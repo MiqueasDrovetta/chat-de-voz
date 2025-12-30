@@ -1,37 +1,38 @@
-
 name: Deploy to GitHub Pages
 
 on:
   push:
     branches:
-      - main # Se activa con cada push a la rama main
+      - main
 
 jobs:
   build-and-deploy:
-    runs-on: ubuntu-latest # Usa la última versión de Ubuntu
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4 # Clona tu repositorio
+        uses: actions/checkout@v4
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20 # Usa Node.js versión 20
+          node-version: 20
 
       - name: Install dependencies
-        run: npm install # Instala las dependencias del proyecto
+        run: npm install
 
       - name: Update vite.config.js for GitHub Pages
-        # Este comando busca la línea 'base:' en vite.config.js
-        # y la reemplaza para apuntar al subdirectorio correcto en GitHub Pages.
         run: sed -i "s|base: '/'|base: '/chat-de-voz/'|" vite.config.js
 
       - name: Build project
-        run: npm run build # Construye la aplicación para producción
+        run: npm run build
+
+      # --- Nueva Solución: Truco para el enrutamiento en SPAs ---
+      - name: Create 404.html for SPA fallback
+        run: cp dist/index.html dist/404.html
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist # La carpeta que se va a desplegar
+          publish_dir: ./dist
