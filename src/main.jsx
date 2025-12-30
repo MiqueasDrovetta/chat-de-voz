@@ -12,7 +12,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
       <Routes>
         <Route path="/" element={<App />}>
           <Route index element={<Home />} />
-          <Route path="room/:roomId" element={<Room />} />
+          <Route path="chat-de-voz/:roomId" element={<Room />} />
         </Route>
       </Routes>
     </BrowserRouter>

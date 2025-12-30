@@ -121,11 +121,11 @@ function Home() {
             }
 
             if (availableRoomId) {
-                navigate(`/room/${availableRoomId}?username=${finalUsername}`);
+                navigate(`/chat-de-voz/${availableRoomId}?username=${finalUsername}`);
             } else {
                 const newRoomRef = push(roomsRef);
                 set(newRoomRef, { users: {}, lastGlobalVoteTime: 0 });
-                navigate(`/room/${newRoomRef.key}?username=${finalUsername}`);
+                navigate(`/chat-de-voz/${newRoomRef.key}?username=${finalUsername}`);
             }
         } catch (error) {
             console.error("Error al unirse a la sala:", error);
