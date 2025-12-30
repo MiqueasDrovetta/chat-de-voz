@@ -1,0 +1,37 @@
+
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main # Se activa con cada push a la rama main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest # Usa la última versión de Ubuntu
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4 # Clona tu repositorio
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20 # Usa Node.js versión 20
+
+      - name: Install dependencies
+        run: npm install # Instala las dependencias del proyecto
+
+      - name: Update vite.config.js for GitHub Pages
+        # Este comando busca la línea 'base:' en vite.config.js
+        # y la reemplaza para apuntar al subdirectorio correcto en GitHub Pages.
+        run: sed -i "s|base: '/'|base: '/chat-de-voz/'|" vite.config.js
+
+      - name: Build project
+        run: npm run build # Construye la aplicación para producción
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist # La carpeta que se va a desplegar
