@@ -114,7 +114,7 @@ function Home() {
             let availableRoomId = null;
 
             for (const [id, room] of Object.entries(rooms)) {
-                if (Object.keys(room.users || {}).length < 5) {
+                if (Object.keys(room.users || {}).length < 5) { // Changed limit to 5
                     availableRoomId = id;
                     break;
                 }
@@ -151,7 +151,19 @@ function Home() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.8, ease: "easeOut" }}
                 >
-                    <Typography variant="h2" component="h1" sx={{ fontWeight: 700, color: '#f1faee', mb: 1 }}>
+                    <Typography variant="h2" component="h1" sx={{
+                        fontWeight: 700,
+                        mb: 1,
+                        background: 'linear-gradient(45deg, #90caf9 30%, #f48fb1 90%)',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        textShadow: `
+                            0 0 8px rgba(144, 202, 249, 0.6),
+                            0 0 16px rgba(144, 202, 249, 0.5),
+                            0 0 24px rgba(244, 143, 177, 0.4),
+                            0 0 32px rgba(244, 143, 177, 0.3)
+                        `,
+                    }}>
                         Bienvenido al Chat de Voz
                     </Typography>
                 </motion.div>

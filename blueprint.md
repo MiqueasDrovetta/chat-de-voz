@@ -7,7 +7,7 @@ Este documento describe el plan para crear una aplicación de chat de voz multiu
 ## Funcionalidades Principales
 
 *   **Chat Basado en Salas Automáticas:** Los usuarios son asignados automáticamente a salas con espacio disponible.
-*   **Límite de Usuarios por Sala:** Cada sala de chat está limitada a un máximo of 2 participantes.
+*   **Límite de Usuarios por Sala:** Cada sala de chat está limitada a un máximo of 5 participantes.
 *   **Conexiones P2P Automáticas:** Conecta sin problemas a los usuarios dentro de la misma sala usando WebRTC.
 *   **Lista de Usuarios:** Muestra una lista de los participantes en la sala de chat.
 *   **Nombre de Usuario de Invitado:** Los usuarios ingresan un nombre base, y el sistema anexa 4 caracteres aleatorios para garantizar un nombre de usuario único.
