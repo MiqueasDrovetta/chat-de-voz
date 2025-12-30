@@ -15,6 +15,7 @@
     "@mui/icons-material": "^7.3.6",
     "@mui/material": "^7.3.6",
     "firebase": "^12.7.0",
+    "framer-motion": "^12.23.26",
     "peerjs": "^1.5.5",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
