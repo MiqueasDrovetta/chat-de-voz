@@ -7,7 +7,7 @@ export default defineConfig(({ command }) => {
     plugins: [react()],
     // Establece la base condicionalmente
     // Si el comando es 'serve' (desarrollo), la base es '/'
-    // Si el comando es 'build' (producción), la base es '/chat-de-voz/'
-    base: command === 'serve' ? '/' : '/chat-de-voz/',
+    // Si el comando es 'build' (producción), la base es '/chat-de-voz' (sin barra al final)
+    base: command === 'serve' ? '/' : '/chat-de-voz',
   }
 })
