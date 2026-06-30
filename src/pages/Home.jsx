@@ -2,10 +2,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
-import { ref, get, child, push, set } from 'firebase/database';
 import { Box, TextField, Button, Typography, Container } from '@mui/material';
 import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
 import { styled } from '@mui/system';
+import { findAvailableRoom, createRoom } from '../utils/rooms';
 
 // --- Styled Components & Custom Hooks ---
 
@@ -28,7 +28,7 @@ const useMouseFollow = () => {
   return { x, y };
 };
 
-const GlowButton = styled(motion.button)(({ theme }) => ({
+const GlowButton = styled(motion.button)(() => ({
   padding: '12px 24px',
   fontSize: '1.1rem',
   fontWeight: 'bold',
@@ -108,24 +108,13 @@ function Home() {
         const finalUsername = `${baseUsername.trim()}-${Math.random().toString(36).substring(2, 6)}`;
 
         try {
-            const roomsRef = ref(db, 'rooms');
-            const snapshot = await get(roomsRef);
-            const rooms = snapshot.val() || {};
-            let availableRoomId = null;
-
-            for (const [id, room] of Object.entries(rooms)) {
-                if (Object.keys(room.users || {}).length < 5) { // Changed limit to 5
-                    availableRoomId = id;
-                    break;
-                }
-            }
+            const availableRoomId = await findAvailableRoom(db);
 
             if (availableRoomId) {
                 navigate(`/chat-de-voz/${availableRoomId}?username=${finalUsername}`);
             } else {
-                const newRoomRef = push(roomsRef);
-                set(newRoomRef, { users: {}, lastGlobalVoteTime: 0 });
-                navigate(`/chat-de-voz/${newRoomRef.key}?username=${finalUsername}`);
+                const newRoomId = await createRoom(db);
+                navigate(`/chat-de-voz/${newRoomId}?username=${finalUsername}`);
             }
         } catch (error) {
             console.error("Error al unirse a la sala:", error);
