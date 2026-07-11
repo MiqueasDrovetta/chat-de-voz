@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
-import { Box, TextField, Button, Typography, Container } from '@mui/material';
+import { Box, TextField, Button, Typography, Container, Card } from '@mui/material';
 import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
 import { styled } from '@mui/system';
 import { findAvailableRoom, createRoom } from '../utils/rooms';
@@ -111,10 +111,10 @@ function Home() {
             const availableRoomId = await findAvailableRoom(db);
 
             if (availableRoomId) {
-                navigate(`/chat-de-voz/${availableRoomId}?username=${finalUsername}`);
+                navigate(`/${availableRoomId}?username=${finalUsername}`);
             } else {
                 const newRoomId = await createRoom(db);
-                navigate(`/chat-de-voz/${newRoomId}?username=${finalUsername}`);
+                navigate(`/${newRoomId}?username=${finalUsername}`);
             }
         } catch (error) {
             console.error("Error al unirse a la sala:", error);
@@ -172,24 +172,36 @@ function Home() {
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ duration: 0.6, delay: 0.6 }}
                 >
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        <AnimatedTextField
-                            label="Tu nombre de usuario"
-                            variant="outlined"
-                            value={baseUsername}
-                            onChange={(e) => setBaseUsername(e.target.value)}
-                            onKeyPress={(e) => e.key === 'Enter' && handleJoin()}
-                            InputLabelProps={{ style: { color: 'rgba(255, 255, 255, 0.7)' } }}
-                            inputProps={{ style: { color: '#fff' } }}
-                        />
-                        <GlowButton 
-                            onClick={handleJoin}
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                        >
-                            Unirse a la Sala
-                        </GlowButton>
-                    </Box>
+                    <Card
+                        elevation={0}
+                        sx={{
+                            p: 4,
+                            borderRadius: 4,
+                            backgroundColor: 'rgba(30, 30, 30, 0.45)',
+                            backdropFilter: 'blur(12px)',
+                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.35)',
+                        }}
+                    >
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            <AnimatedTextField
+                                label="Tu nombre de usuario"
+                                variant="outlined"
+                                value={baseUsername}
+                                onChange={(e) => setBaseUsername(e.target.value)}
+                                onKeyPress={(e) => e.key === 'Enter' && handleJoin()}
+                                InputLabelProps={{ style: { color: 'rgba(255, 255, 255, 0.7)' } }}
+                                inputProps={{ style: { color: '#fff' } }}
+                            />
+                            <GlowButton
+                                onClick={handleJoin}
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                            >
+                                Unirse a la Sala
+                            </GlowButton>
+                        </Box>
+                    </Card>
                 </motion.div>
             </Container>
         </MotionBox>

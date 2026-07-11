@@ -74,7 +74,7 @@ function ParticipantCard({
                                     disabled={alreadyVotedInRound}
                                     sx={{
                                         color: 'error.main',
-                                        ...(votesAgainst > 0 && !alreadyVotedInRound
+                                        ...(!alreadyVotedInRound
                                             ? {
                                                   animation: 'kickPulse 1s ease-in-out infinite',
                                                   '@keyframes kickPulse': {

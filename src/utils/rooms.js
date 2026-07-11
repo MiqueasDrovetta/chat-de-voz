@@ -6,13 +6,15 @@ export const isActiveUser = (user) => !!user && user.status !== 'disconnected';
 export const countActiveUsers = (users) =>
     Object.values(users || {}).filter(isActiveUser).length;
 
+export const countReservedSlots = (users) => Object.keys(users || {}).length;
+
 export async function findAvailableRoom(db) {
     const roomsRef = ref(db, 'rooms');
     const snapshot = await get(roomsRef);
     const rooms = snapshot.val() || {};
 
     for (const [id, room] of Object.entries(rooms)) {
-        if (countActiveUsers(room.users) < MAX_USERS_PER_ROOM) {
+        if (countReservedSlots(room.users) < MAX_USERS_PER_ROOM) {
             return id;
         }
     }
