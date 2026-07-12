@@ -90,13 +90,28 @@ const AnimatedTextField = styled(TextField)({
   },
 });
 
-// --- Component --- 
+// Firebase Realtime Database rechaza estos caracteres en una clave/segmento de ruta.
+const FORBIDDEN_ROOM_ID_CHARS = /[.#$[\]/]/;
+
+// ...y también rechaza caracteres de control; se chequean por código en vez de
+// en el regex de arriba para no meter bytes de control dentro de un literal.
+function hasControlChar(str) {
+    for (let i = 0; i < str.length; i++) {
+        const code = str.charCodeAt(i);
+        if (code <= 0x1f || code === 0x7f) return true;
+    }
+    return false;
+}
+
+// --- Component ---
 
 function Home() {
     const [baseUsername, setBaseUsername] = useState('');
+    const [roomIdInput, setRoomIdInput] = useState('');
+    const [roomIdError, setRoomIdError] = useState('');
     const navigate = useNavigate();
     const { x, y } = useMouseFollow();
-    
+
     // Gradiente del fondo que sigue al mouse
     const backgroundGradient = useTransform(
         [x, y],
@@ -105,16 +120,29 @@ function Home() {
 
     const handleJoin = async () => {
         if (!baseUsername.trim()) return;
+
+        const requestedRoomId = roomIdInput.trim();
+        if (requestedRoomId && (FORBIDDEN_ROOM_ID_CHARS.test(requestedRoomId) || hasControlChar(requestedRoomId))) {
+            setRoomIdError('No puede contener . # $ [ ] / ni caracteres de control');
+            return;
+        }
+        setRoomIdError('');
+
         const finalUsername = `${baseUsername.trim()}-${Math.random().toString(36).substring(2, 6)}`;
 
         try {
+            if (requestedRoomId) {
+                navigate(`/${encodeURIComponent(requestedRoomId)}?username=${encodeURIComponent(finalUsername)}`);
+                return;
+            }
+
             const availableRoomId = await findAvailableRoom(db);
 
             if (availableRoomId) {
-                navigate(`/${availableRoomId}?username=${finalUsername}`);
+                navigate(`/${availableRoomId}?username=${encodeURIComponent(finalUsername)}`);
             } else {
                 const newRoomId = await createRoom(db);
-                navigate(`/${newRoomId}?username=${finalUsername}`);
+                navigate(`/${newRoomId}?username=${encodeURIComponent(finalUsername)}`);
             }
         } catch (error) {
             console.error("Error al unirse a la sala:", error);
@@ -192,6 +220,18 @@ function Home() {
                                 onKeyPress={(e) => e.key === 'Enter' && handleJoin()}
                                 InputLabelProps={{ style: { color: 'rgba(255, 255, 255, 0.7)' } }}
                                 inputProps={{ style: { color: '#fff' } }}
+                            />
+                            <AnimatedTextField
+                                label="ID de la Sala (Opcional)"
+                                variant="outlined"
+                                value={roomIdInput}
+                                onChange={(e) => { setRoomIdInput(e.target.value); setRoomIdError(''); }}
+                                onKeyPress={(e) => e.key === 'Enter' && handleJoin()}
+                                error={!!roomIdError}
+                                helperText={roomIdError || 'Dejalo vacío para unirte a una sala automática'}
+                                InputLabelProps={{ style: { color: 'rgba(255, 255, 255, 0.7)' } }}
+                                inputProps={{ style: { color: '#fff' } }}
+                                FormHelperTextProps={{ sx: { color: roomIdError ? undefined : 'rgba(255, 255, 255, 0.5)' } }}
                             />
                             <GlowButton
                                 onClick={handleJoin}

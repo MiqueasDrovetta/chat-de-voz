@@ -228,7 +228,16 @@ export function useWebRTCChat({ roomId, username, navigate, serverNow }) {
             createAndConnectPeer(reconnectPeerId);
         };
 
-        initializeRoom();
+        // roomId can come from a hand-typed URL as well as the validated Home form,
+        // so a malformed value (invalid Firebase Realtime Database path) must not
+        // leave the user stuck on a silently-broken room page.
+        initializeRoom().catch((err) => {
+            console.error('No se pudo inicializar la sala:', err);
+            if (!cancelled) {
+                alert('No se pudo unir a esa sala.');
+                navigate('/');
+            }
+        });
 
         return () => {
             cancelled = true;

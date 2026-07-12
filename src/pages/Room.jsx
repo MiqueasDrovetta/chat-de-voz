@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { Container, Typography, Box, Grid, IconButton, Tooltip, Snackbar, Button, Paper } from '@mui/material';
-import { ContentCopy } from '@mui/icons-material';
+import { Container, Typography, Box, Grid, IconButton, Tooltip, Snackbar, Button, Paper, useMediaQuery, useTheme } from '@mui/material';
+import { ContentCopy, ExitToApp } from '@mui/icons-material';
 import {
     MAX_USERS_PER_ROOM,
     MIN_USERS_FOR_VOTE,
@@ -44,6 +44,9 @@ function Room() {
         if (!username) navigate('/');
     }, [username, navigate]);
 
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
     const { now, serverNow } = useServerTime();
 
     const {
@@ -72,7 +75,7 @@ function Room() {
             const availableRoomId = await findAvailableRoom(db);
             setIsSearchingRoom(false);
             if (availableRoomId) {
-                navigate(`/${availableRoomId}?username=${username}`);
+                navigate(`/${availableRoomId}?username=${encodeURIComponent(username)}`);
             } else {
                 setKickedStage('noRoomsAvailable');
             }
@@ -85,7 +88,7 @@ function Room() {
     const handleCreateNewRoom = async () => {
         try {
             const newRoomId = await createRoom(db);
-            navigate(`/${newRoomId}?username=${username}`);
+            navigate(`/${newRoomId}?username=${encodeURIComponent(username)}`);
         } catch (error) {
             console.error('Error creando sala:', error);
         }
@@ -96,6 +99,16 @@ function Room() {
     // --- RENDER ---
 
     const activeUserCount = countActiveUsers(users);
+
+    // Nivel de densidad de la grilla para que los 9 cupos quepan sin scroll en un
+    // celular: sólo aplica en xs (mobile); en pantallas más grandes siempre se usa
+    // la tarjeta completa, ya que ahí sobra espacio para cualquier cantidad. Se basa
+    // en participantes ACTIVOS (no en el total con fantasmas) para que un usuario
+    // reconectando no dispare dos reacomodos de la grilla en su ventana de gracia
+    // de 10s: uno al desconectarse y otro al purgarse.
+    const tier = activeUserCount <= 4 ? 'spacious' : activeUserCount <= 6 ? 'compact' : 'minimal';
+    const density = isMobile ? tier : 'spacious';
+    const gridXs = { spacious: 6, compact: 6, minimal: 4 }[tier];
     const myHasInitiatedVote = !!users[myPeerId]?.hasInitiatedVote;
     const globalCooldownRemainingMs = Math.max(0, GLOBAL_VOTE_COOLDOWN * 1000 - (now - (lastGlobalVoteTime || 0)));
     const notEnoughUsersForVote = activeUserCount < MIN_USERS_FOR_VOTE;
@@ -139,6 +152,17 @@ function Room() {
                         </IconButton>
                     </Tooltip>
                 </Box>
+                <Box sx={{ mb: 1 }}>
+                    <Button
+                        variant="outlined"
+                        color="error"
+                        size="small"
+                        startIcon={<ExitToApp />}
+                        onClick={handleGoHome}
+                    >
+                        Salir
+                    </Button>
+                </Box>
                 <Typography align="center" paragraph>{activeUserCount} de {MAX_USERS_PER_ROOM} participantes.</Typography>
 
                 {!vote && (
@@ -152,7 +176,7 @@ function Room() {
                 )}
             </Paper>
 
-            <Grid container spacing={3} justifyContent="center">
+            <Grid container spacing={density === 'minimal' ? 1 : 3} justifyContent="center">
                 {Object.entries(users).map(([id, user]) => {
                     const votesAgainst = vote?.votes?.[id] ? Object.keys(vote.votes[id]).length : 0;
                     const hasVotedForThisUser = !!vote?.votes?.[id]?.[myPeerId];
@@ -160,7 +184,7 @@ function Room() {
                     const canVoteForThisUser = !!vote && isActiveUser(user) && vote.initiator !== id && myPeerId !== id;
 
                     return (
-                        <Grid item xs={12} sm={6} md={4} lg={3} key={id}>
+                        <Grid size={{ xs: gridXs, sm: 6, md: 4, lg: 3 }} key={id}>
                             <ParticipantCard
                                 id={id}
                                 user={user}
@@ -173,6 +197,7 @@ function Room() {
                                 alreadyVotedInRound={alreadyVotedInRound}
                                 onToggleMute={toggleMute}
                                 onVote={handleCastVote}
+                                density={density}
                             />
                         </Grid>
                     );
