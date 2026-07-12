@@ -57,6 +57,7 @@ function Room() {
         kicked,
         myAudioRef,
         toggleMute,
+        leaveRoom,
     } = useWebRTCChat({ roomId, username, navigate, serverNow });
 
     const {
@@ -95,6 +96,14 @@ function Room() {
     };
 
     const handleGoHome = () => navigate('/');
+
+    // "Salir" (voluntary exit, as opposed to a microcut): awaits the real removal
+    // from Firebase and full peer/track teardown before navigating away, instead
+    // of only relying on the effect cleanup that unmounting would trigger anyway.
+    const handleLeaveRoom = async () => {
+        await leaveRoom();
+        navigate('/');
+    };
 
     // --- RENDER ---
 
@@ -158,7 +167,7 @@ function Room() {
                         color="error"
                         size="small"
                         startIcon={<ExitToApp />}
-                        onClick={handleGoHome}
+                        onClick={handleLeaveRoom}
                     >
                         Salir
                     </Button>

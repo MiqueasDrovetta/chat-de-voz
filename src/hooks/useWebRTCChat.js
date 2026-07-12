@@ -107,7 +107,7 @@ export function useWebRTCChat({ roomId, username, navigate, serverNow }) {
     // remaining users, the nomination history and vote cooldowns are wiped too,
     // per spec: history is cumulative per-session but dies with an empty room.
     const removeUserFromRoom = (id, { onlyIfDisconnected = false } = {}) => {
-        runTransaction(ref(db, `rooms/${roomId}`), (room) => {
+        return runTransaction(ref(db, `rooms/${roomId}`), (room) => {
             if (!room || !room.users || !room.users[id]) return room;
             if (onlyIfDisconnected && room.users[id].status !== 'disconnected') return room;
 
@@ -122,6 +122,27 @@ export function useWebRTCChat({ roomId, username, navigate, serverNow }) {
     };
 
     const purgeGhost = (id) => removeUserFromRoom(id, { onlyIfDisconnected: true });
+
+    // --- VOLUNTARY LEAVE (the "Salir" button) ---
+    // Unlike a microcut (which onDisconnect + the 10s grace window handle so a
+    // flaky connection doesn't lose someone's seat), a voluntary leave skips the
+    // grace window entirely: it awaits the real Firebase removal, tears down the
+    // peer/tracks/listeners, and only then lets the caller navigate away, so the
+    // room state is guaranteed consistent before the user's tab moves on.
+    const leaveRoom = async () => {
+        const id = peerRef.current?.id;
+        if (id) {
+            onDisconnect(ref(db, `rooms/${roomId}/users/${id}`)).cancel();
+            await removeUserFromRoom(id);
+        }
+        Object.values(connections.current).forEach((call) => call.close());
+        connections.current = {};
+        myStreamRef.current?.getTracks().forEach((track) => track.stop());
+        peerRef.current?.destroy();
+        peerRef.current = null;
+        sessionStorage.removeItem(storageKey);
+        setPresenceReady(false);
+    };
 
     // --- INITIALIZATION ---
 
@@ -371,5 +392,6 @@ export function useWebRTCChat({ roomId, username, navigate, serverNow }) {
         kicked,
         myAudioRef,
         toggleMute,
+        leaveRoom,
     };
 }

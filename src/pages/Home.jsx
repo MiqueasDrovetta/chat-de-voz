@@ -93,6 +93,7 @@ function hasControlChar(str) {
 
 function Home() {
     const [baseUsername, setBaseUsername] = useState('');
+    const [usernameError, setUsernameError] = useState('');
     const [roomIdInput, setRoomIdInput] = useState('');
     const [roomIdError, setRoomIdError] = useState('');
     const navigate = useNavigate();
@@ -104,8 +105,19 @@ function Home() {
         ([px, py]) => `radial-gradient(600px at ${px}px ${py}px, rgba(29, 53, 87, 0.4), transparent 80%)`
     );
 
+    // Compartido por "Unirse a la Sala" y "Crear Nueva Sala": ninguna de las
+    // dos acciones puede avanzar sin un nombre de usuario.
+    const validateUsername = () => {
+        if (!baseUsername.trim()) {
+            setUsernameError('El nombre de usuario es obligatorio');
+            return false;
+        }
+        setUsernameError('');
+        return true;
+    };
+
     const handleJoin = async () => {
-        if (!baseUsername.trim()) return;
+        if (!validateUsername()) return;
 
         const requestedRoomId = roomIdInput.trim();
         if (requestedRoomId && (FORBIDDEN_ROOM_ID_CHARS.test(requestedRoomId) || hasControlChar(requestedRoomId))) {
@@ -139,7 +151,7 @@ function Home() {
     // una sala automática ni mira el campo "ID de la Sala" (ese campo es sólo
     // para el flujo de "Unirse a la Sala").
     const handleCreateRoom = async () => {
-        if (!baseUsername.trim()) return;
+        if (!validateUsername()) return;
 
         const finalUsername = `${baseUsername.trim()}-${Math.random().toString(36).substring(2, 6)}`;
 
@@ -218,10 +230,13 @@ function Home() {
                                 label="Tu nombre de usuario"
                                 variant="outlined"
                                 value={baseUsername}
-                                onChange={(e) => setBaseUsername(e.target.value)}
+                                onChange={(e) => { setBaseUsername(e.target.value); setUsernameError(''); }}
                                 onKeyPress={(e) => e.key === 'Enter' && handleJoin()}
+                                error={!!usernameError}
+                                helperText={usernameError}
                                 InputLabelProps={{ style: { color: 'rgba(255, 255, 255, 0.7)' } }}
                                 inputProps={{ style: { color: '#fff' } }}
+                                FormHelperTextProps={{ sx: { color: usernameError ? undefined : 'rgba(255, 255, 255, 0.5)' } }}
                             />
                             <AnimatedTextField
                                 label="ID de la Sala (Opcional)"
