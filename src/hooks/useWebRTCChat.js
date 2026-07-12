@@ -5,12 +5,18 @@ import {
     onValue,
     onDisconnect,
     set,
+    update,
     runTransaction,
     get,
     serverTimestamp,
 } from 'firebase/database';
 import { db } from '../firebase';
-import { MAX_USERS_PER_ROOM, RECONNECT_GRACE_MS } from '../constants';
+import {
+    MAX_USERS_PER_ROOM,
+    RECONNECT_GRACE_MS,
+    HEARTBEAT_INTERVAL_MS,
+    PRESENCE_STALE_MS,
+} from '../constants';
 import { isActiveUser, countReservedSlots } from '../utils/rooms';
 
 /**
@@ -155,6 +161,7 @@ export function useWebRTCChat({ roomId, username, navigate, serverNow }) {
                         hasInitiatedVote: false,
                         status: 'connected',
                         disconnectedAt: null,
+                        lastSeen: serverTimestamp(),
                     });
                 });
 
@@ -251,11 +258,30 @@ export function useWebRTCChat({ roomId, username, navigate, serverNow }) {
             const activeCount = Object.values(allUsers).filter(isActiveUser).length;
             if (activeCount >= MAX_USERS_PER_ROOM) {
                 Object.entries(allUsers).forEach(([id, user]) => {
-                    if (!isActiveUser(user)) purgeGhost(id);
+                    if (id !== myPeerId && !isActiveUser(user)) purgeGhost(id);
                 });
             }
 
+            // Presence backstop: someone can still read "connected" here while their
+            // actual tab/socket is long gone, if onDisconnect never got a chance to
+            // fire server-side (abrupt process kill, network partition). Any other
+            // client noticing a stale heartbeat flips them to disconnected itself,
+            // which then feeds the normal grace-purge below like a real onDisconnect would.
             Object.entries(allUsers).forEach(([id, user]) => {
+                if (id === myPeerId || !isActiveUser(user)) return;
+                if (user.lastSeen && serverNow() - user.lastSeen > PRESENCE_STALE_MS) {
+                    update(ref(db, `rooms/${roomId}/users/${id}`), {
+                        status: 'disconnected',
+                        disconnectedAt: serverTimestamp(),
+                    });
+                }
+            });
+
+            Object.entries(allUsers).forEach(([id, user]) => {
+                // Never schedule a self-purge: if this code is running, this client is
+                // definitionally still alive, no matter what its own node currently says
+                // (e.g. a stale-flag race before this tick's heartbeat self-heal lands).
+                if (id === myPeerId) return;
                 if (!isActiveUser(user) && !ghostTimers.current[id]) {
                     const disconnectedAt = user.disconnectedAt || serverNow();
                     const remaining = Math.max(0, RECONNECT_GRACE_MS - (serverNow() - disconnectedAt));
@@ -276,6 +302,27 @@ export function useWebRTCChat({ roomId, username, navigate, serverNow }) {
         });
         return () => unsubscribe();
         // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [myPeerId, roomId]);
+
+    // --- PRESENCE HEARTBEAT ---
+    // Keeps our own `lastSeen` fresh so other clients never need to guess whether
+    // we're really still here; this is what the staleness check above reads. Each
+    // beat also REASSERTS status:'connected': if a stale-but-actually-alive tab
+    // (background-throttled, brief network blip) got flagged 'disconnected' by
+    // someone else's staleness check, this is its only way to self-heal before
+    // the grace-purge timer deletes it — with a 5s heartbeat against a 10s grace
+    // window, self-heal always gets at least one chance to win that race.
+    useEffect(() => {
+        if (!myPeerId) return;
+
+        const beat = () => update(ref(db, `rooms/${roomId}/users/${myPeerId}`), {
+            lastSeen: serverTimestamp(),
+            status: 'connected',
+            disconnectedAt: null,
+        });
+        beat();
+        const id = setInterval(beat, HEARTBEAT_INTERVAL_MS);
+        return () => clearInterval(id);
     }, [myPeerId, roomId]);
 
     const toggleMute = () => {

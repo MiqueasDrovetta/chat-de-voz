@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { Container, Typography, Box, Grid, IconButton, Tooltip, Snackbar, Button } from '@mui/material';
+import { Container, Typography, Box, Grid, IconButton, Tooltip, Snackbar, Button, Paper } from '@mui/material';
 import { ContentCopy } from '@mui/icons-material';
 import {
     MAX_USERS_PER_ROOM,
@@ -126,16 +126,31 @@ function Room() {
                 onVisibilityChange={setBannerVisible}
             />
 
-            <Box sx={{ my: 4, textAlign: 'center' }}>
-                <Typography variant="h4" component="h1" display="inline-block">Sala: </Typography>
-                <Typography variant="h4" component="h1" display="inline-block" sx={{ fontWeight: 'bold' }}>{roomId}</Typography>
-                <Tooltip title="Copiar ID de la sala">
-                    <IconButton onClick={() => { navigator.clipboard.writeText(roomId); notify('ID de la sala copiado'); }}>
-                        <ContentCopy />
-                    </IconButton>
-                </Tooltip>
-            </Box>
-            <Typography align="center" paragraph>{activeUserCount} de {MAX_USERS_PER_ROOM} participantes.</Typography>
+            {/* Panel de control: siempre visible arriba de la grilla de participantes,
+                para que "Iniciar Votación" (o su estado de cooldown) nunca quede
+                oculto por scroll cuando la sala tiene varios usuarios. */}
+            <Paper elevation={3} sx={{ my: 4, py: 3, px: 2, textAlign: 'center' }}>
+                <Box>
+                    <Typography variant="h4" component="h1" display="inline-block">Sala: </Typography>
+                    <Typography variant="h4" component="h1" display="inline-block" sx={{ fontWeight: 'bold' }}>{roomId}</Typography>
+                    <Tooltip title="Copiar ID de la sala">
+                        <IconButton onClick={() => { navigator.clipboard.writeText(roomId); notify('ID de la sala copiado'); }}>
+                            <ContentCopy />
+                        </IconButton>
+                    </Tooltip>
+                </Box>
+                <Typography align="center" paragraph>{activeUserCount} de {MAX_USERS_PER_ROOM} participantes.</Typography>
+
+                {!vote && (
+                    <Tooltip title={startVoteTooltip}>
+                        <span>
+                            <Button variant="contained" size="large" onClick={handleStartVote} disabled={startVoteDisabled}>
+                                {startVoteLabel}
+                            </Button>
+                        </span>
+                    </Tooltip>
+                )}
+            </Paper>
 
             <Grid container spacing={3} justifyContent="center">
                 {Object.entries(users).map(([id, user]) => {
@@ -163,18 +178,6 @@ function Room() {
                     );
                 })}
             </Grid>
-
-            {!vote && (
-                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-                    <Tooltip title={startVoteTooltip}>
-                        <span>
-                            <Button variant="contained" onClick={handleStartVote} disabled={startVoteDisabled}>
-                                {startVoteLabel}
-                            </Button>
-                        </span>
-                    </Tooltip>
-                </Box>
-            )}
 
             <audio ref={myAudioRef} muted autoPlay playsInline />
             {Object.entries(audioStreams).map(([peerId, stream]) => (

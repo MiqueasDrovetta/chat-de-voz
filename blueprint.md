@@ -12,6 +12,7 @@ Aplicación de chat de voz multiusuario basada en salas automáticas, construida
 *   **Nombre de Usuario de Invitado:** Los usuarios ingresan un nombre base, y el sistema anexa 4 caracteres aleatorios para garantizar un nombre de usuario único.
 *   **Señalización sin Servidor:** Utiliza Firebase Realtime Database para la señalización y coordinar las conexiones entre pares.
 *   **Reconexión con Gracia (10s):** Ante un microcorte, la sala reserva el cupo, nombre y sufijo del usuario por hasta 10 segundos (`RECONNECT_GRACE_MS`) antes de liberarlo.
+*   **Heartbeat de Presencia:** cada cliente refresca su propio `lastSeen` cada 5s (`HEARTBEAT_INTERVAL_MS`); si un usuario sigue figurando "connected" pero su `lastSeen` envejece más de 25s (`PRESENCE_STALE_MS`), cualquier otro cliente lo marca como desconectado él mismo. Es un respaldo para cuando el `onDisconnect` de Firebase tarda o no llega a dispararse ante un cierre abrupto del proceso.
 *   **Interfaz de Usuario Moderna:** Interfaz limpia, responsive y con animaciones, construida con React y Material-UI.
 
 ## Sistema de Votación Avanzado
@@ -69,6 +70,7 @@ rooms/
         hasInitiatedVote: boolean
         status: "connected" | "disconnected"
         disconnectedAt: ServerValue.TIMESTAMP | null   # Se setea vía onDisconnect() al perder conexión
+        lastSeen: ServerValue.TIMESTAMP                # Heartbeat propio, refrescado cada HEARTBEAT_INTERVAL_MS
     vote:                                   # null cuando no hay votación activa
       initiator: peerId
       endTime: number                      # epoch ms (server-relative) en que cierra la ronda
@@ -83,8 +85,12 @@ Cuando `users` queda vacío (0 participantes, tras una salida explícita o tras 
 
 La app es 100% cliente (sin Cloud Functions ni backend propio), lo cual implica dos límites arquitectónicos aceptados conscientemente:
 
-*   **Purga de fantasmas dependiente de un cliente vivo:** la expiración de la ventana de gracia de 10s (y por lo tanto el reseteo de `nominations`/`vote`/`lastGlobalVoteTime` al vaciarse la sala) corre vía `setTimeout` en el navegador de cualquier cliente suscrito a esa sala. Si el último participante de una sala se desconecta de forma abrupta (cierre de laptop, corte de red) sin que quede nadie más conectado, ese fantasma puede persistir indefinidamente (reservando 1 de los 9 cupos) hasta que un futuro usuario se una a esa misma sala, momento en el cual su propio cliente lo purga casi al instante. No hay barrido del lado del servidor; resolverlo de forma completa requeriría una Cloud Function programada.
+*   **Purga de fantasmas dependiente de un cliente vivo:** la expiración de la ventana de gracia de 10s (y por lo tanto el reseteo de `nominations`/`vote`/`lastGlobalVoteTime` al vaciarse la sala) corre vía `setTimeout` en el navegador de cualquier cliente suscrito a esa sala. Si el último participante de una sala se desconecta de forma abrupta (cierre de laptop, corte de red) sin que quede nadie más conectado, ese fantasma puede persistir hasta que un futuro usuario se una a esa misma sala (su propio cliente lo purga casi al instante) — el heartbeat de presencia acota este caso a un máximo de ~25s siempre que quede al menos otro cliente conectado observando la sala, pero si la sala queda completamente vacía (0 clientes vivos) no hay nadie para correr ni el heartbeat-check ni el timer de gracia. No hay barrido del lado del servidor; resolverlo por completo requeriría una Cloud Function programada.
 *   **Condición de carrera en la asignación de sala (TOCTOU):** `findAvailableRoom`/`initializeRoom` leen la ocupación con un `get()` simple (no transaccional) y recién reservan el cupo más tarde, tras el handshake de PeerJS. Dos usuarios que se unen casi simultáneamente a una sala que está justo en el límite podrían ambos pasar el chequeo y terminar empujando la sala 1 cupo por encima de `MAX_USERS_PER_ROOM`. Es una condición preexistente (no introducida por refactors posteriores) de baja probabilidad; una solución completa requeriría reservar el cupo dentro de una `runTransaction` antes de iniciar el handshake.
+
+## QA End-to-End
+
+`qa/three-user-flow.js` (Playwright) simula 3 usuarios simultáneos contra un despliegue real: asignación de sala, umbral de 3+ participantes para votar, ronda de votación anónima, expulsión, y los cooldowns/estados post-expulsión. Correrlo con `npm run qa:live [URL]` (por defecto apunta a la URL de producción). Usa la base de datos real, así que una corrida abortada a mitad de camino puede dejar usuarios de prueba colgados en la sala usada — revisar `rooms/` en la consola de Firebase si una corrida posterior se comporta raro.
 
 ## Estado Actual
 
