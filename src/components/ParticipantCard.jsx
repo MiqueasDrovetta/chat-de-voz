@@ -16,6 +16,10 @@ function ParticipantCard({
     onVote,
 }) {
     const isGhost = user.status === 'disconnected';
+    // Firebase is an external, realtime-writable boundary: a node can theoretically
+    // be observed mid-write (or written by a stale cached client) before it has a
+    // username. Falling back here keeps one bad record from crashing the whole room.
+    const username = user.username || '???';
 
     return (
         <Card
@@ -38,11 +42,11 @@ function ParticipantCard({
             )}
 
             <Avatar sx={{ width: 80, height: 80, mb: 1, mx: 'auto', bgcolor: 'secondary.main' }}>
-                {user.username.charAt(0).toUpperCase()}
+                {username.charAt(0).toUpperCase()}
             </Avatar>
 
             <CardContent sx={{ p: 0 }}>
-                <Typography variant="h6">{user.username}</Typography>
+                <Typography variant="h6">{username}</Typography>
 
                 <Badge
                     badgeContent={user.nominations || 0}
@@ -67,7 +71,7 @@ function ParticipantCard({
                     </IconButton>
 
                     {voteActive && canVoteForThisUser && (
-                        <Tooltip title={alreadyVotedInRound ? (hasVotedForThisUser ? 'Tu voto' : 'Ya votaste') : `Votar para expulsar a ${user.username}`}>
+                        <Tooltip title={alreadyVotedInRound ? (hasVotedForThisUser ? 'Tu voto' : 'Ya votaste') : `Votar para expulsar a ${username}`}>
                             <span>
                                 <IconButton
                                     onClick={() => onVote(id)}

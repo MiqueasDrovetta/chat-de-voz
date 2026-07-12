@@ -31,6 +31,7 @@ export function useWebRTCChat({ roomId, username, navigate, serverNow }) {
     const [audioStreams, setAudioStreams] = useState({});
     const [isMuted, setIsMuted] = useState(false);
     const [kicked, setKicked] = useState(false);
+    const [presenceReady, setPresenceReady] = useState(false);
 
     const myAudioRef = useRef(null);
     const peerRef = useRef(null);
@@ -93,6 +94,11 @@ export function useWebRTCChat({ roomId, username, navigate, serverNow }) {
         peerRef.current = null;
         setAudioStreams({});
         sessionStorage.removeItem(storageKey);
+        // Stops the heartbeat effect (gated on presenceReady): otherwise it would
+        // keep firing every HEARTBEAT_INTERVAL_MS and recreate our just-deleted
+        // node with lastSeen/status but no username, the same zombie shape the
+        // presenceReady gate above exists to prevent in the first place.
+        setPresenceReady(false);
         setKicked(true);
     };
 
@@ -126,6 +132,7 @@ export function useWebRTCChat({ roomId, username, navigate, serverNow }) {
 
         setKicked(false);
         setIsMuted(false);
+        setPresenceReady(false);
         setUsers({});
         setAudioStreams({});
         prevUsersRef.current = {};
@@ -153,7 +160,7 @@ export function useWebRTCChat({ roomId, username, navigate, serverNow }) {
                 const userRef = ref(db, `rooms/${roomId}/users/${id}`);
                 onDisconnect(userRef).update({ status: 'disconnected', disconnectedAt: serverTimestamp() });
 
-                get(ref(db, `rooms/${roomId}/nominations/${id}`)).then((nomSnapshot) => {
+                get(ref(db, `rooms/${roomId}/nominations/${id}`)).then((nomSnapshot) =>
                     set(userRef, {
                         username,
                         isMuted: false,
@@ -162,7 +169,13 @@ export function useWebRTCChat({ roomId, username, navigate, serverNow }) {
                         status: 'connected',
                         disconnectedAt: null,
                         lastSeen: serverTimestamp(),
-                    });
+                    })
+                ).then(() => {
+                    // Sólo ahora existe el registro completo en Firebase: recién acá es
+                    // seguro dejar que el heartbeat escriba sobre este nodo, para que
+                    // nunca pueda ganarle la carrera al set() inicial y crear un nodo a
+                    // medias (sin username) que otros clientes intenten renderizar.
+                    if (!cancelled) setPresenceReady(true);
                 });
 
                 navigator.mediaDevices.getUserMedia({ audio: true, video: false })
@@ -313,7 +326,10 @@ export function useWebRTCChat({ roomId, username, navigate, serverNow }) {
     // the grace-purge timer deletes it — with a 5s heartbeat against a 10s grace
     // window, self-heal always gets at least one chance to win that race.
     useEffect(() => {
-        if (!myPeerId) return;
+        // presenceReady gates this on the initial set() having already created the
+        // full user record — otherwise an early beat() could win a race against
+        // that set() and leave a node with lastSeen/status but no username.
+        if (!myPeerId || !presenceReady) return;
 
         const beat = () => update(ref(db, `rooms/${roomId}/users/${myPeerId}`), {
             lastSeen: serverTimestamp(),
@@ -323,7 +339,7 @@ export function useWebRTCChat({ roomId, username, navigate, serverNow }) {
         beat();
         const id = setInterval(beat, HEARTBEAT_INTERVAL_MS);
         return () => clearInterval(id);
-    }, [myPeerId, roomId]);
+    }, [myPeerId, roomId, presenceReady]);
 
     const toggleMute = () => {
         const myStream = myStreamRef.current;

@@ -3,7 +3,8 @@
 // `npx playwright install chromium`.
 //
 // Uso:
-//   node qa/three-user-flow.js [URL_BASE]
+//   npm run qa:live -- [URL_BASE]
+//   node qa/three-user-flow.cjs [URL_BASE]
 // Por defecto corre contra https://miqueasdrovetta.github.io/chat-de-voz/
 //
 // Importante: usa la base de datos real de producción. Si la sala usada por el

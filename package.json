@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d dist",
-    "qa:live": "node qa/three-user-flow.js"
+    "qa:live": "node qa/three-user-flow.cjs"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
