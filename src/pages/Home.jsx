@@ -10,6 +10,7 @@ import { findAvailableRoom, createRoom } from '../utils/rooms';
 // --- Styled Components & Custom Hooks ---
 
 const MotionBox = motion(Box);
+const MotionButton = motion(Button);
 
 const useMouseFollow = () => {
   const x = useMotionValue(0);
@@ -28,46 +29,31 @@ const useMouseFollow = () => {
   return { x, y };
 };
 
-const GlowButton = styled(motion.button)(() => ({
-  padding: '12px 24px',
-  fontSize: '1.1rem',
-  fontWeight: 'bold',
-  color: '#fff',
-  backgroundColor: 'transparent',
-  border: '2px solid #90caf9',
-  borderRadius: '50px',
-  cursor: 'pointer',
-  position: 'relative',
-  overflow: 'hidden',
-  transition: 'color 0.4s, box-shadow 0.4s',
-  '--glow-color': 'rgba(144, 202, 249, 0.8)',
-  '--glow-spread': '0px',
-
-  '&:before': {
-    content: '""',
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: '#90caf9',
+// Estilo compartido por los dos botones de acción (mismo look "pill" con glow
+// que ya tenía el botón original, ahora sobre variantes reales de MUI en vez
+// de un <button> a medida, para poder diferenciar contained/outlined).
+const actionButtonSx = {
+    flex: 1,
+    py: 1.5,
+    fontSize: '1rem',
+    fontWeight: 'bold',
     borderRadius: '50px',
-    transform: 'scaleX(0)',
-    transformOrigin: 'left',
-    transition: 'transform 0.4s ease',
-    zIndex: -1,
-  },
+    textTransform: 'none',
+};
 
-  '&:hover': {
-    color: '#121212',
-    '--glow-spread': '8px',
-    boxShadow: `0 0 15px 5px var(--glow-color)`,
-  },
+const primaryActionSx = {
+    ...actionButtonSx,
+    boxShadow: '0 0 12px 2px rgba(144, 202, 249, 0.45)',
+    '&:hover': { boxShadow: '0 0 20px 6px rgba(144, 202, 249, 0.65)' },
+};
 
-  '&:hover:before': {
-    transform: 'scaleX(1)',
-  },
-}));
+const secondaryActionSx = {
+    ...actionButtonSx,
+    borderColor: 'rgba(144, 202, 249, 0.5)',
+    borderWidth: 2,
+    color: '#90caf9',
+    '&:hover': { borderWidth: 2, borderColor: '#90caf9', backgroundColor: 'rgba(144, 202, 249, 0.08)' },
+};
 
 const AnimatedTextField = styled(TextField)({
   '& label.Mui-focused': {
@@ -146,6 +132,22 @@ function Home() {
             }
         } catch (error) {
             console.error("Error al unirse a la sala:", error);
+        }
+    };
+
+    // "Crear Nueva Sala" siempre arma una sala propia desde cero: nunca busca
+    // una sala automática ni mira el campo "ID de la Sala" (ese campo es sólo
+    // para el flujo de "Unirse a la Sala").
+    const handleCreateRoom = async () => {
+        if (!baseUsername.trim()) return;
+
+        const finalUsername = `${baseUsername.trim()}-${Math.random().toString(36).substring(2, 6)}`;
+
+        try {
+            const newRoomId = await createRoom(db);
+            navigate(`/${newRoomId}?username=${encodeURIComponent(finalUsername)}`);
+        } catch (error) {
+            console.error('Error creando la sala:', error);
         }
     };
 
@@ -233,13 +235,26 @@ function Home() {
                                 inputProps={{ style: { color: '#fff' } }}
                                 FormHelperTextProps={{ sx: { color: roomIdError ? undefined : 'rgba(255, 255, 255, 0.5)' } }}
                             />
-                            <GlowButton
-                                onClick={handleJoin}
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                            >
-                                Unirse a la Sala
-                            </GlowButton>
+                            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2 }}>
+                                <MotionButton
+                                    variant="contained"
+                                    onClick={handleJoin}
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    sx={primaryActionSx}
+                                >
+                                    Unirse a la Sala
+                                </MotionButton>
+                                <MotionButton
+                                    variant="outlined"
+                                    onClick={handleCreateRoom}
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    sx={secondaryActionSx}
+                                >
+                                    Crear Nueva Sala
+                                </MotionButton>
+                            </Box>
                         </Box>
                     </Card>
                 </motion.div>
